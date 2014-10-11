@@ -7,9 +7,21 @@ module Phase5
     # 2. post body
     # 3. route params
     def initialize(req, route_params = {})
+      @params = {}
+      
+      if req.body
+        @params.merge!(parse_www_encoded_form(req.body))
+      end
+      
+      if req.query_string
+        @params.merge!(parse_www_encoded_form(req.query_string))
+      end
+      
+      @params.merge!(route_params)
     end
 
     def [](key)
+      @params[key]
     end
 
     def to_s
@@ -25,11 +37,43 @@ module Phase5
     # should return
     # { "user" => { "address" => { "street" => "main", "zip" => "89436" } } }
     def parse_www_encoded_form(www_encoded_form)
+      # decode = URI::decode_www_form(www_encoded_form)
+      # params = {} 
+      #
+      # decode.each do |full_key, val|
+      #   keys = parse_key(full_key) #=> ["user", "address", "street"]
+      #   
+      #   scope = params
+      #   until keys.empty do
+      #     curr_key = keys.shift #=> "user"
+      #
+      #     params = params[curr_key] ? params[curr_key] : {} #=> @params["user"]
+      params = {}
+
+      key_values = URI.decode_www_form(www_encoded_form)
+      key_values.each do |full_key, value|
+        scope = params
+
+        key_seq = parse_key(full_key)
+        key_seq.each_with_index do |key, idx|
+          if (idx + 1) == key_seq.count
+            scope[key] = value
+          else
+            scope[key] ||= {}
+            scope = scope[key]
+          end
+        end
+      end
+
+      params
+        
     end
 
     # this should return an array
     # user[address][street] should return ['user', 'address', 'street']
     def parse_key(key)
+      r = Regexp.new(/\[|\]\[|\]/)
+      key.split(r)
     end
   end
 end
